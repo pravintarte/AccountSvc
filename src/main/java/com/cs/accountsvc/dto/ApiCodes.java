@@ -10,9 +10,6 @@ package com.cs.accountsvc.dto;
 public final class ApiCodes {
 
     public static final String TRANSACTION_APPLIED = "TRANSACTION_APPLIED";
-    public static final String TRANSACTION_DUPLICATE = "TRANSACTION_DUPLICATE";
-    public static final String ACCOUNT_RETRIEVED = "ACCOUNT_RETRIEVED";
-    public static final String BALANCE_RETRIEVED = "BALANCE_RETRIEVED";
     public static final String HEALTH_OK = "HEALTH_OK";
 
     public static final String ACCOUNT_TRANSACTION_REJECTED = "ACCOUNT_TRANSACTION_REJECTED";
