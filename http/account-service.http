@@ -1,0 +1,27 @@
+### Account Service health
+GET http://localhost:8081/health
+
+### Account Service healthcheck alias
+GET http://localhost:8081/healthcheck
+
+### Apply credit transaction
+POST http://localhost:8081/accounts/acct-123/transactions
+Content-Type: application/json
+Idempotency-Key: 9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2
+
+{
+  "eventId": "9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2",
+  "type": "CREDIT",
+  "amount": 150.00,
+  "currency": "USD",
+  "eventTimestamp": "2026-05-15T14:02:11Z",
+  "metadata": {
+    "source": "event-gateway"
+  }
+}
+
+### Get balance
+GET http://localhost:8081/accounts/acct-123/balance
+
+### Get account details
+GET http://localhost:8081/accounts/acct-123

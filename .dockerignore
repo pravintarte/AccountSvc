@@ -1,0 +1,7 @@
+target/*
+!target/account-service.jar
+.idea/
+*.iml
+.git/
+.gitignore
+README.md

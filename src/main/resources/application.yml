@@ -1,0 +1,89 @@
+server:
+  port: 8081
+  shutdown: graceful
+
+spring:
+  application:
+    name: account-service
+  datasource:
+    url: jdbc:h2:mem:accountsvc;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      pool-name: account-service-hikari
+      maximum-pool-size: ${ACCOUNT_SERVICE_DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${ACCOUNT_SERVICE_DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${ACCOUNT_SERVICE_DB_CONNECTION_TIMEOUT:2000}
+      validation-timeout: ${ACCOUNT_SERVICE_DB_VALIDATION_TIMEOUT:1000}
+      idle-timeout: ${ACCOUNT_SERVICE_DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${ACCOUNT_SERVICE_DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${ACCOUNT_SERVICE_DB_LEAK_DETECTION_THRESHOLD:0}
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+account-service:
+  transactions:
+    recent-limit: ${ACCOUNT_SERVICE_RECENT_TRANSACTION_LIMIT:25}
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    register-with-eureka: ${EUREKA_REGISTER_WITH_EUREKA:true}
+    fetch-registry: ${EUREKA_FETCH_REGISTRY:true}
+    serviceUrl:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: ${EUREKA_INSTANCE_PREFER_IP_ADDRESS:true}
+    instance-id: ${spring.application.name}:${server.port}
+    statusPageUrlPath: /actuator/info
+    healthCheckUrlPath: /health
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+    export:
+      zipkin:
+        endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: Account Service
+    description: Spring Boot skeleton for account transaction capabilities.
+
+logging:
+  structured:
+    format:
+      console: logstash
+    json:
+      rename:
+        "[@timestamp]": timestamp
+        logger_name: logger
+        thread_name: thread
+      customizer:
+        - com.cs.accountsvc.config.logging.AccountServiceStructuredLoggingJsonCustomizer
+      context:
+        include: false
+  level:
+    root: INFO
+    com.cs.accountsvc: DEBUG
