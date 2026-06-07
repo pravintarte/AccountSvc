@@ -1,20 +1,13 @@
 package com.cs.accountsvc.controller;
 
-import java.time.Clock;
-import java.time.Instant;
-
 import com.cs.accountsvc.dto.AccountDetailsResponse;
 import com.cs.accountsvc.dto.AccountTransactionRequest;
-import com.cs.accountsvc.dto.ApiCodes;
-import com.cs.accountsvc.dto.ApiResponse;
 import com.cs.accountsvc.dto.BalanceResponse;
-import com.cs.accountsvc.dto.TransactionResponse;
 import com.cs.accountsvc.service.AccountLedgerService;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -44,7 +37,7 @@ public class AccountController {
     private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 
     private final AccountLedgerService accountLedgerService;
-    private final Clock clock;
+    private final MeterRegistry meterRegistry;
 
     /**
      * Applies an account transaction idempotently.
@@ -52,7 +45,7 @@ public class AccountController {
      * @param accountId account id path variable
      * @param idempotencyKey optional idempotency key header
      * @param request transaction request body
-     * @return applied or duplicate transaction response
+     * @return no-content response after the transaction is accepted
      */
     @Operation(
             summary = "Apply account transaction",
@@ -60,22 +53,16 @@ public class AccountController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "201",
-                    description = "Transaction was applied.",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Duplicate transaction was acknowledged.",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    responseCode = "204",
+                    description = "Transaction was accepted or an exact duplicate was acknowledged."
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "409",
-                    description = "Event id was reused with different transaction data."
+                    description = "Transaction was rejected or event id was reused with different transaction data."
             )
     })
     @PostMapping("/accounts/{accountId}/transactions")
-    public ResponseEntity<ApiResponse<TransactionResponse>> applyTransaction(
+    public ResponseEntity<Void> applyTransaction(
             @Parameter(
                     name = "accountId",
                     description = "Account id receiving the transaction.",
@@ -90,28 +77,15 @@ public class AccountController {
             @Valid @RequestBody AccountTransactionRequest request
     ) {
         log.info("Received account transaction request accountId={} eventId={}", accountId, request.eventId());
-        TransactionResponse serviceResponse = accountLedgerService.applyTransaction(accountId, request, idempotencyKey);
-        HttpStatus status = serviceResponse.duplicate() ? HttpStatus.OK : HttpStatus.CREATED;
-        String code = serviceResponse.duplicate() ? ApiCodes.TRANSACTION_DUPLICATE : ApiCodes.TRANSACTION_APPLIED;
-        String description = serviceResponse.duplicate()
-                ? "Duplicate transaction was acknowledged and not re-applied."
-                : "Transaction was applied.";
-        ResponseEntity<ApiResponse<TransactionResponse>> response = ResponseEntity.status(status).body(new ApiResponse<>(
-                Instant.now(clock),
-                status.value(),
-                code,
-                description,
-                serviceResponse
-        ));
+        accountLedgerService.applyTransaction(accountId, request, idempotencyKey);
+        recordTransactionMetric(request.type().name(), "accepted");
         log.info(
-                "Completed account transaction request accountId={} eventId={} httpStatus={} code={} duplicate={}",
+                "Completed account transaction request accountId={} eventId={} httpStatus={}",
                 accountId,
                 request.eventId(),
-                status.value(),
-                code,
-                serviceResponse.duplicate()
+                HttpStatus.NO_CONTENT.value()
         );
-        return response;
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -122,18 +96,13 @@ public class AccountController {
      */
     @Operation(summary = "Get account balance")
     @GetMapping("/accounts/{accountId}/balance")
-    public ResponseEntity<ApiResponse<BalanceResponse>> getBalance(
+    public ResponseEntity<BalanceResponse> getBalance(
             @PathVariable @NotBlank String accountId
     ) {
         log.info("Received account balance request accountId={}", accountId);
         BalanceResponse balance = accountLedgerService.getBalance(accountId);
-        ResponseEntity<ApiResponse<BalanceResponse>> response = ResponseEntity.ok(new ApiResponse<>(
-                Instant.now(clock),
-                HttpStatus.OK.value(),
-                ApiCodes.BALANCE_RETRIEVED,
-                "Account balance was retrieved.",
-                balance
-        ));
+        recordReadMetric("balance");
+        ResponseEntity<BalanceResponse> response = ResponseEntity.ok(balance);
         log.info(
                 "Completed account balance request accountId={} httpStatus={} balance={} currency={}",
                 accountId,
@@ -152,18 +121,13 @@ public class AccountController {
      */
     @Operation(summary = "Get account details")
     @GetMapping("/accounts/{accountId}")
-    public ResponseEntity<ApiResponse<AccountDetailsResponse>> getAccount(
+    public ResponseEntity<AccountDetailsResponse> getAccount(
             @PathVariable @NotBlank String accountId
     ) {
         log.info("Received account detail request accountId={}", accountId);
         AccountDetailsResponse account = accountLedgerService.getAccount(accountId);
-        ResponseEntity<ApiResponse<AccountDetailsResponse>> response = ResponseEntity.ok(new ApiResponse<>(
-                Instant.now(clock),
-                HttpStatus.OK.value(),
-                ApiCodes.ACCOUNT_RETRIEVED,
-                "Account details were retrieved.",
-                account
-        ));
+        recordReadMetric("account");
+        ResponseEntity<AccountDetailsResponse> response = ResponseEntity.ok(account);
         log.info(
                 "Completed account detail request accountId={} httpStatus={} recentTransactionCount={}",
                 accountId,
@@ -171,5 +135,23 @@ public class AccountController {
                 account.recentTransactions().size()
         );
         return response;
+    }
+
+    private void recordTransactionMetric(String type, String result) {
+        meterRegistry.counter(
+                "account_service.transactions.applied",
+                "type",
+                type,
+                "result",
+                result
+        ).increment();
+    }
+
+    private void recordReadMetric(String endpoint) {
+        meterRegistry.counter(
+                "account_service.requests",
+                "endpoint",
+                endpoint
+        ).increment();
     }
 }

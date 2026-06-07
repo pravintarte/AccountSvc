@@ -15,6 +15,7 @@ public final class ApiCodes {
     public static final String BALANCE_RETRIEVED = "BALANCE_RETRIEVED";
     public static final String HEALTH_OK = "HEALTH_OK";
 
+    public static final String ACCOUNT_TRANSACTION_REJECTED = "ACCOUNT_TRANSACTION_REJECTED";
     public static final String VALIDATION_ERROR = "VALIDATION_ERROR";
     public static final String MALFORMED_REQUEST = "MALFORMED_REQUEST";
     public static final String ACCOUNT_NOT_FOUND = "ACCOUNT_NOT_FOUND";

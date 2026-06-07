@@ -7,6 +7,7 @@ import java.util.List;
 import com.cs.accountsvc.dto.ApiCodes;
 import com.cs.accountsvc.dto.ApiErrorResponse;
 import com.cs.accountsvc.exception.AccountNotFoundException;
+import com.cs.accountsvc.exception.AccountTransactionRejectedException;
 import com.cs.accountsvc.exception.DuplicateTransactionConflictException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
@@ -127,9 +128,22 @@ public class GlobalExceptionHandler {
      * @return stable not-found response
      */
     @ExceptionHandler(AccountNotFoundException.class)
-    public ResponseEntity<ApiErrorResponse> handleAccountNotFound(AccountNotFoundException ex) {
+    public ResponseEntity<ContractErrorResponse> handleAccountNotFound(AccountNotFoundException ex) {
         log.warn("Account lookup failed: {}", ex.getMessage());
-        return error(HttpStatus.NOT_FOUND, ApiCodes.ACCOUNT_NOT_FOUND, ex.getMessage(), List.of());
+        return contractError(HttpStatus.NOT_FOUND, ApiCodes.ACCOUNT_NOT_FOUND, "Account not found.");
+    }
+
+    /**
+     * Handles business rejections for otherwise valid gateway transaction
+     * requests.
+     *
+     * @param ex domain exception describing the rejection
+     * @return stable conflict response consumed by Event Gateway
+     */
+    @ExceptionHandler(AccountTransactionRejectedException.class)
+    public ResponseEntity<ContractErrorResponse> handleAccountTransactionRejected(AccountTransactionRejectedException ex) {
+        log.warn("Account transaction was rejected: {}", ex.getMessage());
+        return contractError(HttpStatus.CONFLICT, ApiCodes.ACCOUNT_TRANSACTION_REJECTED, ex.getMessage());
     }
 
     /**
@@ -187,5 +201,26 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(status)
                 .body(new ApiErrorResponse(Instant.now(clock), status.value(), code, description, details));
+    }
+
+    /**
+     * Builds the minimal error shape used by the Event Gateway to Account
+     * Service contract.
+     *
+     * @param status HTTP status to return
+     * @param code stable Account Service application error code
+     * @param description human-readable error description
+     * @return response entity containing the contract error payload
+     */
+    private ResponseEntity<ContractErrorResponse> contractError(
+            HttpStatus status,
+            String code,
+            String description
+    ) {
+        log.debug("Building contract error response httpStatus={} code={}", status.value(), code);
+        return ResponseEntity.status(status).body(new ContractErrorResponse(code, description));
+    }
+
+    private record ContractErrorResponse(String code, String description) {
     }
 }

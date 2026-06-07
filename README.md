@@ -14,12 +14,13 @@ Spring Boot Account Service skeleton aligned with the sibling Event Gateway API.
 - Hikari connection pooling through Spring Boot datasource auto-configuration
 - H2 in-memory database
 - Cucumber acceptance tests through the JUnit Platform
+- Pact provider verification for the Event Gateway consumer contract
 
 ## API
 
-- `POST /accounts/{accountId}/transactions` applies a CREDIT or DEBIT transaction sent by Event Gateway.
-- `GET /accounts/{accountId}/balance` returns the computed balance.
-- `GET /accounts/{accountId}` returns account details and recent transactions.
+- `POST /accounts/{accountId}/transactions` applies a CREDIT or DEBIT transaction sent by Event Gateway and returns `204 No Content` when accepted.
+- `GET /accounts/{accountId}/balance` returns the raw computed balance payload consumed by Event Gateway.
+- `GET /accounts/{accountId}` returns raw account details and recent transactions.
 - `GET /health` and `GET /healthcheck` return the public service health response.
 - `GET /actuator/health` returns runtime health details.
 - `GET /h2-console` opens the development H2 console.
@@ -41,7 +42,23 @@ Transaction apply requests accept the same payload used by Event Gateway's `Acco
 }
 ```
 
-The endpoint also accepts `Idempotency-Key`; exact duplicate `eventId` calls are acknowledged without re-applying the transaction.
+The endpoint also accepts `Idempotency-Key`; exact duplicate `eventId` calls are acknowledged with `204 No Content` without re-applying the transaction.
+
+Provider-side Pact verification is documented in [docs/account-service-contract.md](docs/account-service-contract.md).
+
+Run the provider contract test locally:
+
+```powershell
+mvn "-Dtest=AccountServicePactProviderTest" test
+```
+
+Regenerate the consumer pact in the sibling Event Gateway project:
+
+```powershell
+cd ..\EventGatewayService
+mvn "-Dtest=AccountServicePactConsumerTest" test
+Copy-Item target\pacts\event-gateway-api-account-service.json ..\AccountSvc\src\test\resources\pacts\event-gateway-api-account-service.json -Force
+```
 
 ## POC Internal Access Guard
 
@@ -126,3 +143,10 @@ mvn clean test
 mvn clean package
 docker compose up --build
 ```
+
+## Observability
+
+Console logs are emitted as JSON and include `timestamp`, `level`, `serviceName`, `traceId`, and `spanId`.
+Incoming `X-Trace-Id` headers from Event Gateway are echoed in responses and placed in the logging MDC.
+`GET /health` returns public service status plus database connectivity diagnostics.
+Actuator metrics are exposed under `/actuator/metrics`; accepted transactions increment the custom `account_service.transactions.applied` counter tagged by transaction type and result.

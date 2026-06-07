@@ -16,16 +16,13 @@
 
   Scenario: Apply a valid credit transaction
     When I apply a CREDIT transaction "9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2" for account "acct-123" with amount "150.00"
-    Then the response status is 201
-    And the response code is "TRANSACTION_APPLIED"
+    Then the response status is 204
     And the account transaction count is 1
 
   Scenario: Ignore an exact duplicate transaction
     Given I applied a CREDIT transaction "5ecf9f54-2f32-41b0-9b48-e879842f3fb5" for account "acct-123" with amount "150.00"
     When I apply the same transaction again
-    Then the response status is 200
-    And the response code is "TRANSACTION_DUPLICATE"
-    And the response data field "duplicate" is "true"
+    Then the response status is 204
     And the account transaction count is 1
 
   Scenario: Return validation error for an invalid transaction
@@ -39,5 +36,4 @@
     And I applied a DEBIT transaction "991f1f51-27cf-4f90-8ea9-2e867a044581" for account "acct-balanced" with amount "25.00"
     When I get the balance for account "acct-balanced"
     Then the response status is 200
-    And the response code is "BALANCE_RETRIEVED"
     And the response contains balance "125.00"

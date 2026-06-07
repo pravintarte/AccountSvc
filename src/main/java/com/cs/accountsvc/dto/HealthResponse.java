@@ -1,6 +1,7 @@
 package com.cs.accountsvc.dto;
 
 import java.time.Instant;
+import java.util.Map;
 
 /**
  * Lightweight public health response.
@@ -13,6 +14,7 @@ import java.time.Instant;
  * @param status service status
  * @param service service name
  * @param timestamp server-side UTC timestamp
+ * @param diagnostics basic component diagnostics
  */
-public record HealthResponse(String status, String service, Instant timestamp) {
+public record HealthResponse(String status, String service, Instant timestamp, Map<String, String> diagnostics) {
 }

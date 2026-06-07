@@ -121,7 +121,7 @@ public class AccountServiceAcceptanceSteps {
     public void appliedTransaction(String type, String eventId, String accountId, String amount) throws Exception {
         log.info("Executing Cucumber setup step: apply prerequisite transaction eventId={}", eventId);
         applyTransaction(type, eventId, accountId, amount);
-        assertThat(lastResponse.getResponse().getStatus()).isEqualTo(201);
+        assertThat(lastResponse.getResponse().getStatus()).isEqualTo(204);
         log.info("Verified prerequisite transaction was applied eventId={}", eventId);
     }
 

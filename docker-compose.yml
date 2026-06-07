@@ -1,18 +1,10 @@
 services:
-  zipkin:
-    image: openzipkin/zipkin:latest
-    container_name: account-service-zipkin
-    ports:
-      - "9411:9411"
-
   account-service:
     build:
       context: .
     container_name: account-service
-    depends_on:
-      - zipkin
     environment:
-      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      ZIPKIN_ENDPOINT: http://host.docker.internal:9411/api/v2/spans
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_DEFAULT_ZONE: http://host.docker.internal:8761/eureka/
     extra_hosts:

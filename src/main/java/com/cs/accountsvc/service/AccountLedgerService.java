@@ -14,6 +14,7 @@ import com.cs.accountsvc.dto.EventType;
 import com.cs.accountsvc.dto.TransactionResponse;
 import com.cs.accountsvc.entity.AccountTransactionRecord;
 import com.cs.accountsvc.exception.AccountNotFoundException;
+import com.cs.accountsvc.exception.AccountTransactionRejectedException;
 import com.cs.accountsvc.exception.DuplicateTransactionConflictException;
 import com.cs.accountsvc.repository.AccountTransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -80,7 +81,7 @@ public class AccountLedgerService {
         );
         TransactionResponse response = repository.findById(request.eventId())
                 .map(existing -> duplicateOrConflict(existing, accountId, request))
-                .orElseGet(() -> persist(accountId, request, idempotencyKey));
+                .orElseGet(() -> applyNewTransaction(accountId, request, idempotencyKey));
         log.info(
                 "Completed account transaction apply accountId={} eventId={} duplicate={} appliedAt={}",
                 response.accountId(),
@@ -89,6 +90,55 @@ public class AccountLedgerService {
                 response.appliedAt()
         );
         return response;
+    }
+
+    /**
+     * Applies a new transaction after idempotency lookup has confirmed the
+     * upstream event id is not already stored.
+     *
+     * @param accountId account receiving the transaction
+     * @param request validated transaction request body
+     * @param idempotencyKey optional Event Gateway idempotency header value
+     * @return response DTO representing the stored transaction
+     */
+    private TransactionResponse applyNewTransaction(
+            String accountId,
+            AccountTransactionRequest request,
+            String idempotencyKey
+    ) {
+        rejectDebitWhenFundsAreInsufficient(accountId, request);
+        return persist(accountId, request, idempotencyKey);
+    }
+
+    /**
+     * Rejects debit transactions that would make the account balance negative.
+     *
+     * <p>Account Service exposes this as a stable business rejection so Event
+     * Gateway can mark the event non-retryable.</p>
+     *
+     * @param accountId account receiving the transaction
+     * @param request validated transaction request body
+     */
+    private void rejectDebitWhenFundsAreInsufficient(String accountId, AccountTransactionRequest request) {
+        if (request.type() != EventType.DEBIT) {
+            return;
+        }
+
+        BigDecimal currentBalance = repository.findByAccountId(accountId)
+                .stream()
+                .map(this::signedAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (currentBalance.compareTo(request.amount()) < 0) {
+            log.warn(
+                    "Rejecting debit transaction because funds are insufficient accountId={} eventId={} "
+                            + "balance={} requestedAmount={}",
+                    accountId,
+                    request.eventId(),
+                    currentBalance,
+                    request.amount()
+            );
+            throw new AccountTransactionRejectedException("Insufficient funds.");
+        }
     }
 
     /**
@@ -327,8 +377,8 @@ public class AccountLedgerService {
     }
 
     /**
-     * Maps a persisted transaction record to the public transaction response
-     * shape used by controller and acceptance-test responses.
+     * Maps a persisted transaction record to the internal transaction response
+     * used by service tests and duplicate detection.
      *
      * @param record persisted transaction record
      * @param duplicate whether the response represents an acknowledged duplicate request
