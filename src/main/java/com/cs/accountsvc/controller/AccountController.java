@@ -96,13 +96,22 @@ public class AccountController {
         String description = serviceResponse.duplicate()
                 ? "Duplicate transaction was acknowledged and not re-applied."
                 : "Transaction was applied.";
-        return ResponseEntity.status(status).body(new ApiResponse<>(
+        ResponseEntity<ApiResponse<TransactionResponse>> response = ResponseEntity.status(status).body(new ApiResponse<>(
                 Instant.now(clock),
                 status.value(),
                 code,
                 description,
                 serviceResponse
         ));
+        log.info(
+                "Completed account transaction request accountId={} eventId={} httpStatus={} code={} duplicate={}",
+                accountId,
+                request.eventId(),
+                status.value(),
+                code,
+                serviceResponse.duplicate()
+        );
+        return response;
     }
 
     /**
@@ -118,13 +127,21 @@ public class AccountController {
     ) {
         log.info("Received account balance request accountId={}", accountId);
         BalanceResponse balance = accountLedgerService.getBalance(accountId);
-        return ResponseEntity.ok(new ApiResponse<>(
+        ResponseEntity<ApiResponse<BalanceResponse>> response = ResponseEntity.ok(new ApiResponse<>(
                 Instant.now(clock),
                 HttpStatus.OK.value(),
                 ApiCodes.BALANCE_RETRIEVED,
                 "Account balance was retrieved.",
                 balance
         ));
+        log.info(
+                "Completed account balance request accountId={} httpStatus={} balance={} currency={}",
+                accountId,
+                response.getStatusCode().value(),
+                balance.balance(),
+                balance.currency()
+        );
+        return response;
     }
 
     /**
@@ -140,12 +157,19 @@ public class AccountController {
     ) {
         log.info("Received account detail request accountId={}", accountId);
         AccountDetailsResponse account = accountLedgerService.getAccount(accountId);
-        return ResponseEntity.ok(new ApiResponse<>(
+        ResponseEntity<ApiResponse<AccountDetailsResponse>> response = ResponseEntity.ok(new ApiResponse<>(
                 Instant.now(clock),
                 HttpStatus.OK.value(),
                 ApiCodes.ACCOUNT_RETRIEVED,
                 "Account details were retrieved.",
                 account
         ));
+        log.info(
+                "Completed account detail request accountId={} httpStatus={} recentTransactionCount={}",
+                accountId,
+                response.getStatusCode().value(),
+                account.recentTransactions().size()
+        );
+        return response;
     }
 }

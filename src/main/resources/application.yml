@@ -1,16 +1,20 @@
 server:
+  # Account Service listens on 8081 so Event Gateway can run locally on 8080.
   port: 8081
+  # Graceful shutdown lets in-flight requests finish before the process exits.
   shutdown: graceful
 
 spring:
   application:
     name: account-service
   datasource:
+    # H2 keeps the skeleton self-contained while preserving the JPA/data-source shape used in production services.
     url: jdbc:h2:mem:accountsvc;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
     username: sa
     password:
     hikari:
+      # Hikari is the local downstream-resource protection mechanism for this service.
       pool-name: account-service-hikari
       maximum-pool-size: ${ACCOUNT_SERVICE_DB_POOL_MAX_SIZE:10}
       minimum-idle: ${ACCOUNT_SERVICE_DB_POOL_MIN_IDLE:2}
@@ -33,10 +37,18 @@ spring:
 
 account-service:
   transactions:
+    # Bounds the transaction history returned by GET /accounts/{accountId}.
     recent-limit: ${ACCOUNT_SERVICE_RECENT_TRANSACTION_LIMIT:25}
+  internal-access:
+    # POC guard: /accounts/** requests must present Event Gateway's internal caller identity and shared token.
+    caller-header: ${ACCOUNT_SERVICE_INTERNAL_CALLER_HEADER:X-Internal-Caller}
+    token-header: ${ACCOUNT_SERVICE_INTERNAL_TOKEN_HEADER:X-Internal-Token}
+    allowed-caller: ${ACCOUNT_SERVICE_ALLOWED_CALLER:event-gateway-api}
+    token: ${ACCOUNT_SERVICE_INTERNAL_TOKEN:local-dev-token}
 
 eureka:
   client:
+    # Account Service registers as the downstream target that Event Gateway resolves by service id.
     enabled: ${EUREKA_CLIENT_ENABLED:true}
     register-with-eureka: ${EUREKA_REGISTER_WITH_EUREKA:true}
     fetch-registry: ${EUREKA_FETCH_REGISTRY:true}
@@ -52,12 +64,14 @@ management:
   endpoints:
     web:
       exposure:
+        # Expose only operational endpoints that are relevant after removing Resilience4j from this downstream service.
         include: health,info,metrics,loggers
   endpoint:
     health:
       show-details: always
   tracing:
     sampling:
+      # Sample all traces in the skeleton so local requests are easy to inspect in Zipkin.
       probability: 1.0
     export:
       zipkin:
@@ -69,7 +83,7 @@ management:
 info:
   app:
     name: Account Service
-    description: Spring Boot skeleton for account transaction capabilities.
+    description: Account transaction processing service
 
 logging:
   structured:

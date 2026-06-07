@@ -8,6 +8,8 @@ GET http://localhost:8081/healthcheck
 POST http://localhost:8081/accounts/acct-123/transactions
 Content-Type: application/json
 Idempotency-Key: 9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2
+X-Internal-Caller: event-gateway-api
+X-Internal-Token: local-dev-token
 
 {
   "eventId": "9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2",
@@ -22,6 +24,10 @@ Idempotency-Key: 9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2
 
 ### Get balance
 GET http://localhost:8081/accounts/acct-123/balance
+X-Internal-Caller: event-gateway-api
+X-Internal-Token: local-dev-token
 
 ### Get account details
 GET http://localhost:8081/accounts/acct-123
+X-Internal-Caller: event-gateway-api
+X-Internal-Token: local-dev-token

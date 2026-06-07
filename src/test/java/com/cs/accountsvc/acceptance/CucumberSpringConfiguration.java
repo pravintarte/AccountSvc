@@ -6,6 +6,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 
 /**
  * Spring Boot test context used by Cucumber step definitions.
+ *
+ * <p>This configuration starts the Account Service application context with
+ * MockMvc so acceptance steps exercise the real controller, validation,
+ * service, repository, serialization, structured logging, and datasource
+ * configuration paths. Eureka and Zipkin are disabled because acceptance tests
+ * should not require external infrastructure.</p>
  */
 @CucumberContextConfiguration
 @SpringBootTest(properties = {

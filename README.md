@@ -43,6 +43,29 @@ Transaction apply requests accept the same payload used by Event Gateway's `Acco
 
 The endpoint also accepts `Idempotency-Key`; exact duplicate `eventId` calls are acknowledged without re-applying the transaction.
 
+## POC Internal Access Guard
+
+Account endpoints under `/accounts/**` require Event Gateway's shared POC
+headers. Direct calls without these headers return `403 Forbidden` with code
+`INTERNAL_ACCESS_DENIED`.
+
+```powershell
+$env:ACCOUNT_SERVICE_INTERNAL_CALLER_HEADER = "X-Internal-Caller"
+$env:ACCOUNT_SERVICE_INTERNAL_TOKEN_HEADER = "X-Internal-Token"
+$env:ACCOUNT_SERVICE_ALLOWED_CALLER = "event-gateway-api"
+$env:ACCOUNT_SERVICE_INTERNAL_TOKEN = "local-dev-token"
+```
+
+Required request headers for local POC calls:
+
+```http
+X-Internal-Caller: event-gateway-api
+X-Internal-Token: local-dev-token
+```
+
+This is intentionally a POC-only guard. Production should use network policy,
+mTLS, OAuth2 client credentials, or a service mesh policy.
+
 ## Service Discovery
 
 This service registers with Eureka using `spring.application.name=account-service`, matching Event Gateway's default `ACCOUNT_SERVICE_SERVICE_ID`.

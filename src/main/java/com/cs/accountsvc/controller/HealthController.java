@@ -36,12 +36,14 @@ public class HealthController {
     public ResponseEntity<ApiResponse<HealthResponse>> health() {
         log.debug("Received health request");
         Instant now = Instant.now(clock);
-        return ResponseEntity.ok(new ApiResponse<>(
+        ResponseEntity<ApiResponse<HealthResponse>> response = ResponseEntity.ok(new ApiResponse<>(
                 now,
                 HttpStatus.OK.value(),
                 ApiCodes.HEALTH_OK,
                 "Service is healthy.",
                 new HealthResponse("UP", serviceName, now)
         ));
+        log.debug("Completed health request serviceName={} status={} timestamp={}", serviceName, "UP", now);
+        return response;
     }
 }

@@ -12,6 +12,7 @@ import com.cs.accountsvc.dto.EventType;
 import com.cs.accountsvc.dto.TransactionResponse;
 import com.cs.accountsvc.exception.DuplicateTransactionConflictException;
 import com.cs.accountsvc.repository.AccountTransactionRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * balance calculation, and account detail projection from persisted H2 ledger
  * records.</p>
  */
+@Slf4j
 @DisplayName("AccountLedgerService persistence, idempotency, balance, and read-model behavior")
 @SpringBootTest(properties = "eureka.client.enabled=false")
 class AccountLedgerServiceTest {
@@ -48,6 +50,7 @@ class AccountLedgerServiceTest {
     @BeforeEach
     @DisplayName("Reset the in-memory account transaction repository before each AccountLedgerService scenario")
     void setUp() {
+        log.info("Resetting account transaction repository before AccountLedgerService test scenario");
         repository.deleteAll();
     }
 
@@ -58,6 +61,7 @@ class AccountLedgerServiceTest {
     @Test
     @DisplayName("applyTransaction persists a new CREDIT event and returns a non-duplicate applied response")
     void applyTransaction_whenCreditEventIdHasNotBeenSeen_persistsOneTransactionAndReturnsNonDuplicateResponse() {
+        log.info("Testing new CREDIT transaction persistence and non-duplicate response");
         TransactionResponse response = service.applyTransaction(
                 "acct-123",
                 request(EVENT_ID, EventType.CREDIT, "150.00"),
@@ -67,6 +71,7 @@ class AccountLedgerServiceTest {
         assertThat(response.duplicate()).isFalse();
         assertThat(response.accountId()).isEqualTo("acct-123");
         assertThat(repository.count()).isEqualTo(1);
+        log.info("Verified new CREDIT transaction persistence and non-duplicate response");
     }
 
     /**
@@ -76,6 +81,7 @@ class AccountLedgerServiceTest {
     @Test
     @DisplayName("applyTransaction acknowledges an exact duplicate event without inserting a second transaction")
     void applyTransaction_whenSameEventIdAndSamePayloadAreSubmittedAgain_returnsDuplicateAndKeepsSingleRecord() {
+        log.info("Testing exact duplicate transaction acknowledgement without a second insert");
         AccountTransactionRequest request = request(EVENT_ID, EventType.CREDIT, "150.00");
         service.applyTransaction("acct-123", request, EVENT_ID.toString());
 
@@ -83,6 +89,7 @@ class AccountLedgerServiceTest {
 
         assertThat(duplicate.duplicate()).isTrue();
         assertThat(repository.count()).isEqualTo(1);
+        log.info("Verified exact duplicate transaction acknowledgement without a second insert");
     }
 
     /**
@@ -92,6 +99,7 @@ class AccountLedgerServiceTest {
     @Test
     @DisplayName("applyTransaction rejects a reused event id when the incoming payload differs from the stored transaction")
     void applyTransaction_whenExistingEventIdIsReusedWithDifferentTransactionType_throwsDuplicateTransactionConflict() {
+        log.info("Testing duplicate transaction conflict when event id is reused with different payload");
         service.applyTransaction("acct-123", request(EVENT_ID, EventType.CREDIT, "150.00"), EVENT_ID.toString());
 
         assertThatThrownBy(() -> service.applyTransaction(
@@ -99,6 +107,7 @@ class AccountLedgerServiceTest {
                 request(EVENT_ID, EventType.DEBIT, "150.00"),
                 EVENT_ID.toString()
         )).isInstanceOf(DuplicateTransactionConflictException.class);
+        log.info("Verified duplicate transaction conflict for reused event id with different payload");
     }
 
     /**
@@ -107,6 +116,7 @@ class AccountLedgerServiceTest {
     @Test
     @DisplayName("getBalance returns credits minus debits for all persisted transactions on the account")
     void getBalance_whenAccountContainsCreditAndDebitTransactions_returnsSignedNetBalanceAndCurrency() {
+        log.info("Testing signed balance calculation from CREDIT and DEBIT transactions");
         service.applyTransaction("acct-123", request(EVENT_ID, EventType.CREDIT, "150.00"), EVENT_ID.toString());
         service.applyTransaction(
                 "acct-123",
@@ -118,6 +128,7 @@ class AccountLedgerServiceTest {
 
         assertThat(balance.balance()).isEqualByComparingTo("125.00");
         assertThat(balance.currency()).isEqualTo("USD");
+        log.info("Verified signed balance calculation from CREDIT and DEBIT transactions");
     }
 
     /**
@@ -127,12 +138,14 @@ class AccountLedgerServiceTest {
     @Test
     @DisplayName("getAccount returns account details with computed balance and recent transaction history")
     void getAccount_whenAccountHasStoredTransactions_returnsDetailsWithRecentTransactions() {
+        log.info("Testing account detail projection with recent transaction history");
         service.applyTransaction("acct-123", request(EVENT_ID, EventType.CREDIT, "150.00"), EVENT_ID.toString());
 
         AccountDetailsResponse account = service.getAccount("acct-123");
 
         assertThat(account.accountId()).isEqualTo("acct-123");
         assertThat(account.recentTransactions()).hasSize(1);
+        log.info("Verified account detail projection with recent transaction history");
     }
 
     /**
@@ -144,6 +157,8 @@ class AccountLedgerServiceTest {
      * @return valid account transaction request
      */
     private AccountTransactionRequest request(UUID eventId, EventType type, String amount) {
+        log.debug("Building AccountLedgerService test transaction request eventId={} type={} amount={}",
+                eventId, type, amount);
         return new AccountTransactionRequest(
                 eventId,
                 type,

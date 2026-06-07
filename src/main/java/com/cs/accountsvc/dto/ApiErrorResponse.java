@@ -8,6 +8,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 /**
  * Standard API error response.
  *
+ * <p>Every expected validation or business error uses this envelope so callers
+ * receive consistent timestamp, HTTP status, application code, description, and
+ * optional detail fields. Unexpected exceptions are also normalized into this
+ * shape by the global exception handler.</p>
+ *
  * @param timestamp server-side UTC timestamp
  * @param status HTTP status code
  * @param code stable application error code

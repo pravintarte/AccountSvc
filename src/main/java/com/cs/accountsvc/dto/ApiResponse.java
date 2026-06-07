@@ -7,6 +7,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 /**
  * Standard successful API response envelope.
  *
+ * <p>Controllers use this shape for successful health, transaction, balance,
+ * and account-detail responses. The envelope keeps transport status, stable
+ * application code, human-readable description, and typed payload data together
+ * in a single contract.</p>
+ *
  * @param timestamp server-side UTC timestamp
  * @param status HTTP status code
  * @param code stable application response code

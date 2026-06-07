@@ -13,6 +13,15 @@ import jakarta.validation.constraints.Size;
 /**
  * Transaction request accepted from Event Gateway.
  *
+ * <p>The Account Service receives this request at
+ * {@code POST /accounts/{accountId}/transactions}. The path variable carries
+ * the target account id, while this body carries the upstream event identity
+ * and transaction facts required for idempotency and balance calculation.</p>
+ *
+ * <p>Validation annotations enforce the minimum contract before business logic
+ * runs: event id, type, positive amount, three-character currency, and original
+ * event timestamp are required.</p>
+ *
  * @param eventId upstream event identifier
  * @param type CREDIT or DEBIT
  * @param amount positive transaction amount
