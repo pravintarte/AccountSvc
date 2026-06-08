@@ -67,7 +67,7 @@ management:
     web:
       exposure:
         # Expose only operational endpoints that are relevant after removing Resilience4j from this downstream service.
-        include: health,info,metrics,loggers
+        include: health,info,metrics,prometheus,loggers
   endpoint:
     health:
       show-details: always

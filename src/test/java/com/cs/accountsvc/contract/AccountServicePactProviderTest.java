@@ -1,6 +1,8 @@
 package com.cs.accountsvc.contract;
 
 import java.math.BigDecimal;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -57,10 +59,10 @@ class AccountServicePactProviderTest {
      * @param context Pact verification context for the current interaction
      */
     @BeforeEach
-    void beforeEach(PactVerificationContext context) {
+    void beforeEach(PactVerificationContext context) throws MalformedURLException {
         log.info("Preparing Pact provider verification target port={}", port);
         repository.deleteAll();
-        context.setTarget(new HttpTestTarget("localhost", port));
+        context.setTarget(HttpTestTarget.fromUrl(URI.create("http://localhost:" + port).toURL()));
     }
 
     /**

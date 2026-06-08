@@ -198,7 +198,7 @@ $env:EUREKA_FETCH_REGISTRY = "true"
 
 ## Structured Logging and Tracing
 
-Console logs use Spring Boot structured Logstash JSON format. Each log line includes stable `serviceName`, `traceId`, `spanId`, and `appTraceId` fields, matching Event Gateway's log contract. `traceId` is the Micrometer/Zipkin id; `appTraceId` mirrors `X-Trace-Id`.
+Console logs use Spring Boot structured Logstash JSON format. Each log line includes stable `serviceName`, `traceId`, `spanId`, and `appTraceId` fields, matching Event Gateway's log contract. `traceId` is the Micrometer/Zipkin id; `appTraceId` mirrors `X-Trace-Id`. Prometheus scrape output is exposed at `/actuator/prometheus`.
 
 Zipkin endpoint override:
 
@@ -276,5 +276,5 @@ docker compose up --build
 Console logs are emitted as JSON and include `timestamp`, `level`, `serviceName`, `traceId`, `spanId`, and `appTraceId`.
 `X-Trace-Id` response headers mirror the active exported trace id. Callers that need to continue an existing distributed trace should send standard `traceparent` or B3 propagation headers.
 `GET /health` returns public service status plus database connectivity diagnostics.
-Actuator metrics are exposed under `/actuator/metrics`; accepted transactions increment the custom `account_service.transactions.applied` counter tagged by transaction type and result.
+Actuator metrics are exposed under `/actuator/metrics` and Prometheus scrape output is exposed at `/actuator/prometheus`; accepted transactions increment the custom `account_service.transactions.applied` counter tagged by transaction type and result.
 

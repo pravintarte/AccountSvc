@@ -85,6 +85,25 @@ class AccountInternalAccessInterceptorTest {
     }
 
     /**
+     * Verifies callers other than Event Gateway are denied even with the right token.
+     *
+     * @throws Exception when MockMvc request execution fails
+     */
+    @Test
+    @DisplayName("Account endpoint request with a forbidden internal caller is denied with HTTP 403")
+    void accountEndpoint_whenInternalCallerIsForbidden_returnsForbidden() throws Exception {
+        log.info("Testing account endpoint denial when internal caller is forbidden");
+
+        mockMvc.perform(get("/accounts/acct-123/balance")
+                        .header(INTERNAL_CALLER_HEADER, "external-client")
+                        .header(INTERNAL_TOKEN_HEADER, LOCAL_DEV_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("INTERNAL_ACCESS_DENIED"))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.details[0]").value("Missing or invalid internal caller headers."));
+    }
+
+    /**
      * Verifies valid Event Gateway internal headers allow account endpoint traffic.
      *
      * @throws Exception when MockMvc request execution fails
