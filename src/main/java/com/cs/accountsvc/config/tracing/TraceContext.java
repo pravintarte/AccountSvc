@@ -7,10 +7,6 @@ import org.slf4j.MDC;
 /**
  * Minimal application correlation context used for explicit
  * Gateway-to-Account-Service propagation.
- *
- * <p>Micrometer owns the {@code traceId} MDC key used by Zipkin. This class
- * only writes {@code appTraceId} so log correlation does not mask the real
- * exported trace id.</p>
  */
 public final class TraceContext {
 
@@ -36,15 +32,19 @@ public final class TraceContext {
 
     public static final class TraceScope implements AutoCloseable {
 
+        private final String previousTraceId;
         private final String previousAppTraceId;
 
         private TraceScope(String traceId) {
+            this.previousTraceId = MDC.get(MDC_TRACE_ID_KEY);
             this.previousAppTraceId = MDC.get(MDC_APP_TRACE_ID_KEY);
+            MDC.put(MDC_TRACE_ID_KEY, traceId);
             MDC.put(MDC_APP_TRACE_ID_KEY, traceId);
         }
 
         @Override
         public void close() {
+            restore(MDC_TRACE_ID_KEY, previousTraceId);
             restore(MDC_APP_TRACE_ID_KEY, previousAppTraceId);
         }
 

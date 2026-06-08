@@ -35,6 +35,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountController {
 
     private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+    private static final String TRANSACTION_METRIC = "account_service.transactions";
+    private static final String LEGACY_TRANSACTION_APPLIED_METRIC = "account_service.transactions.applied";
+    private static final String BALANCE_ENQUIRY_METRIC = "account_service.balance.enquiries";
+    private static final String REQUEST_METRIC = "account_service.requests";
 
     private final AccountLedgerService accountLedgerService;
     private final MeterRegistry meterRegistry;
@@ -77,8 +81,14 @@ public class AccountController {
             @Valid @RequestBody AccountTransactionRequest request
     ) {
         log.info("Received account transaction request accountId={} eventId={}", accountId, request.eventId());
-        accountLedgerService.applyTransaction(accountId, request, idempotencyKey);
-        recordTransactionMetric(request.type().name(), "accepted");
+        try {
+            accountLedgerService.applyTransaction(accountId, request, idempotencyKey);
+            recordTransactionMetric(request.type().name(), "success");
+            recordLegacyTransactionAppliedMetric(request.type().name());
+        } catch (RuntimeException ex) {
+            recordTransactionMetric(request.type().name(), "failure");
+            throw ex;
+        }
         log.info(
                 "Completed account transaction request accountId={} eventId={} httpStatus={}",
                 accountId,
@@ -101,6 +111,7 @@ public class AccountController {
     ) {
         log.info("Received account balance request accountId={}", accountId);
         BalanceResponse balance = accountLedgerService.getBalance(accountId);
+        recordBalanceEnquiryMetric();
         recordReadMetric("balance");
         ResponseEntity<BalanceResponse> response = ResponseEntity.ok(balance);
         log.info(
@@ -139,7 +150,7 @@ public class AccountController {
 
     private void recordTransactionMetric(String type, String result) {
         meterRegistry.counter(
-                "account_service.transactions.applied",
+                TRANSACTION_METRIC,
                 "type",
                 type,
                 "result",
@@ -149,9 +160,23 @@ public class AccountController {
 
     private void recordReadMetric(String endpoint) {
         meterRegistry.counter(
-                "account_service.requests",
+                REQUEST_METRIC,
                 "endpoint",
                 endpoint
         ).increment();
+    }
+
+    private void recordLegacyTransactionAppliedMetric(String type) {
+        meterRegistry.counter(
+                LEGACY_TRANSACTION_APPLIED_METRIC,
+                "type",
+                type,
+                "result",
+                "accepted"
+        ).increment();
+    }
+
+    private void recordBalanceEnquiryMetric() {
+        meterRegistry.counter(BALANCE_ENQUIRY_METRIC).increment();
     }
 }

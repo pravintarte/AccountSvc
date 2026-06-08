@@ -11,7 +11,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.blankOrNullString;
-import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -64,14 +63,13 @@ class TraceContextFilterTest {
     }
 
     @Test
-    void request_whenTraceHeaderIsPresent_usesZipkinTraceIdForResponseHeader() throws Exception {
+    void request_whenTraceHeaderIsPresent_usesGatewayTraceIdForResponseHeader() throws Exception {
         MDC.put(TraceContext.MDC_TRACE_ID_KEY, "zipkin-trace");
 
         try {
-            mockMvc.perform(get("/health").header("X-Trace-Id", "app-trace"))
+            mockMvc.perform(get("/health").header("X-Trace-Id", "0123456789abcdef0123456789abcdef"))
                     .andExpect(status().isOk())
-                    .andExpect(header().string("X-Trace-Id", not("app-trace")))
-                    .andExpect(header().string("X-Trace-Id", matchesPattern("[a-f0-9]{16}|[a-f0-9]{32}")));
+                    .andExpect(header().string("X-Trace-Id", "0123456789abcdef0123456789abcdef"));
 
             assertThat(MDC.get(TraceContext.MDC_TRACE_ID_KEY)).isEqualTo("zipkin-trace");
         } finally {
@@ -81,12 +79,12 @@ class TraceContextFilterTest {
     }
 
     @Test
-    void traceScope_preservesZipkinTraceIdAndRestoresAppTraceId() {
+    void traceScope_setsTraceIdAndAppTraceIdAndRestoresPreviousValues() {
         MDC.put(TraceContext.MDC_TRACE_ID_KEY, "zipkin-trace");
         MDC.put(TraceContext.MDC_APP_TRACE_ID_KEY, "previous-app-trace");
 
         try (TraceContext.TraceScope ignored = TraceContext.startTrace("current-app-trace")) {
-            assertThat(MDC.get(TraceContext.MDC_TRACE_ID_KEY)).isEqualTo("zipkin-trace");
+            assertThat(MDC.get(TraceContext.MDC_TRACE_ID_KEY)).isEqualTo("current-app-trace");
             assertThat(MDC.get(TraceContext.MDC_APP_TRACE_ID_KEY)).isEqualTo("current-app-trace");
         }
 
@@ -98,10 +96,9 @@ class TraceContextFilterTest {
     }
 
     @Test
-    void request_whenTraceHeaderIsPresent_doesNotLetCustomHeaderOverrideZipkinTrace() throws Exception {
+    void request_whenTraceHeaderIsPresent_usesGatewayTraceIdEvenWhenItIsNotZipkinCompatible() throws Exception {
         mockMvc.perform(get("/health").header("X-Trace-Id", "trace-123"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("X-Trace-Id", not("trace-123")))
-                .andExpect(header().string("X-Trace-Id", matchesPattern("[a-f0-9]{16}|[a-f0-9]{32}")));
+                .andExpect(header().string("X-Trace-Id", "trace-123"));
     }
 }

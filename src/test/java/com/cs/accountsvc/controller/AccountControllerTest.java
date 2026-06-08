@@ -9,6 +9,7 @@ import com.cs.accountsvc.dto.AccountTransactionRequest;
 import com.cs.accountsvc.dto.BalanceResponse;
 import com.cs.accountsvc.dto.EventType;
 import com.cs.accountsvc.dto.TransactionResponse;
+import com.cs.accountsvc.exception.AccountTransactionRejectedException;
 import com.cs.accountsvc.service.AccountLedgerService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +19,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 /**
@@ -50,6 +54,13 @@ class AccountControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(response.getBody()).isNull();
         assertThat(meterRegistry.counter(
+                "account_service.transactions",
+                "type",
+                "CREDIT",
+                "result",
+                "success"
+        ).count()).isEqualTo(1.0);
+        assertThat(meterRegistry.counter(
                 "account_service.transactions.applied",
                 "type",
                 "CREDIT",
@@ -58,6 +69,39 @@ class AccountControllerTest {
         ).count()).isEqualTo(1.0);
         verify(service).applyTransaction("acct-123", request, EVENT_ID.toString());
         log.info("Verified controller returned HTTP 204 for accepted transaction");
+    }
+
+    @Test
+    @DisplayName("applyTransaction records a failure metric when the service rejects the transaction")
+    void applyTransaction_whenServiceRejectsTransaction_recordsFailureMetricAndRethrows() {
+        log.info("Testing controller metric recording for a rejected account transaction");
+        AccountLedgerService service = mock(AccountLedgerService.class);
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+        AccountController controller = new AccountController(service, meterRegistry);
+        AccountTransactionRequest request = request();
+
+        doThrow(new AccountTransactionRejectedException("insufficient funds"))
+                .when(service)
+                .applyTransaction("acct-123", request, EVENT_ID.toString());
+
+        assertThatThrownBy(() -> controller.applyTransaction("acct-123", EVENT_ID.toString(), request))
+                .isInstanceOf(AccountTransactionRejectedException.class)
+                .hasMessage("insufficient funds");
+
+        assertThat(meterRegistry.counter(
+                "account_service.transactions",
+                "type",
+                "CREDIT",
+                "result",
+                "failure"
+        ).count()).isEqualTo(1.0);
+        assertThat(meterRegistry.find("account_service.transactions")
+                .tag("type", "CREDIT")
+                .tag("result", "success")
+                .counter()).isNull();
+        verify(service).applyTransaction("acct-123", request, EVENT_ID.toString());
+        verifyNoMoreInteractions(service);
+        log.info("Verified controller recorded failure metric for rejected transaction");
     }
 
     @Test
@@ -76,6 +120,8 @@ class AccountControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo(balance);
         assertThat(meterRegistry.counter("account_service.requests", "endpoint", "balance").count())
+                .isEqualTo(1.0);
+        assertThat(meterRegistry.counter("account_service.balance.enquiries").count())
                 .isEqualTo(1.0);
         log.info("Verified controller returned raw balance response");
     }
