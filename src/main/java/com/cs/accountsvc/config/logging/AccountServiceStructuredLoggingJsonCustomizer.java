@@ -1,6 +1,7 @@
 package com.cs.accountsvc.config.logging;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import com.cs.accountsvc.config.tracing.TraceContext;
 import org.springframework.boot.json.JsonWriter;
 import org.springframework.boot.logging.structured.StructuredLoggingJsonMembersCustomizer;
 import org.springframework.core.env.Environment;
@@ -10,10 +11,10 @@ import org.springframework.core.env.Environment;
  *
  * <p>Spring Boot emits Logstash-style JSON logs for this service. This
  * customizer adds stable fields that operations teams can query across Account
- * Service and Event Gateway logs: {@code serviceName}, {@code traceId}, and
- * {@code spanId}. The trace fields are intentionally emitted as empty strings
- * when no tracing context exists so downstream log pipelines can rely on a
- * stable JSON shape.</p>
+ * Service and Event Gateway logs: {@code serviceName}, {@code traceId},
+ * {@code spanId}, and {@code appTraceId}. {@code traceId} is reserved for
+ * Micrometer/Zipkin; {@code appTraceId} mirrors the gateway-facing
+ * {@code X-Trace-Id} correlation header.</p>
  */
 public class AccountServiceStructuredLoggingJsonCustomizer
         implements StructuredLoggingJsonMembersCustomizer<ILoggingEvent> {
@@ -41,8 +42,9 @@ public class AccountServiceStructuredLoggingJsonCustomizer
     @Override
     public void customize(JsonWriter.Members<ILoggingEvent> members) {
         members.add("serviceName", serviceName);
-        members.add("traceId", (event) -> mdcValue(event, "traceId"));
+        members.add("traceId", (event) -> mdcValue(event, TraceContext.MDC_TRACE_ID_KEY));
         members.add("spanId", (event) -> mdcValue(event, "spanId"));
+        members.add("appTraceId", (event) -> mdcValue(event, TraceContext.MDC_APP_TRACE_ID_KEY));
     }
 
     /**

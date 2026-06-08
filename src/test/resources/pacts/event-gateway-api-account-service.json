@@ -1,0 +1,230 @@
+{
+  "consumer": {
+    "name": "event-gateway-api"
+  },
+  "interactions": [
+    {
+      "description": "apply a gateway transaction event to an account",
+      "key": "a663850c",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "account acct-123 accepts credit transactions"
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "amount": 150.00,
+            "currency": "USD",
+            "eventId": "9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2",
+            "eventTimestamp": "2026-05-15T14:02:11Z",
+            "metadata": {
+              "source": "pact-consumer-test"
+            },
+            "type": "CREDIT"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "Idempotency-Key": [
+            "9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2"
+          ],
+          "X-Internal-Caller": [
+            "event-gateway-api"
+          ],
+          "X-Internal-Token": [
+            "local-dev-token"
+          ],
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "method": "POST",
+        "path": "/accounts/acct-123/transactions"
+      },
+      "response": {
+        "status": 204
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "get account balance through Account Service",
+      "key": "ec06ec30",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "account acct-123 has a balance"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": [
+            "application/json"
+          ],
+          "X-Internal-Caller": [
+            "event-gateway-api"
+          ],
+          "X-Internal-Token": [
+            "local-dev-token"
+          ]
+        },
+        "method": "GET",
+        "path": "/accounts/acct-123/balance"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "accountId": "acct-123",
+            "balance": 275.50,
+            "currency": "USD"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "status": 200
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "apply a gateway transaction event that Account Service rejects",
+      "key": "6ac9a28",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "account acct-123 rejects the transaction"
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "amount": 150.00,
+            "currency": "USD",
+            "eventId": "9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2",
+            "eventTimestamp": "2026-05-15T14:02:11Z",
+            "metadata": {
+              "source": "pact-consumer-test"
+            },
+            "type": "DEBIT"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "Idempotency-Key": [
+            "9b63f0d4-0f49-4f85-9447-fd45a0c5b3c2"
+          ],
+          "X-Internal-Caller": [
+            "event-gateway-api"
+          ],
+          "X-Internal-Token": [
+            "local-dev-token"
+          ],
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "method": "POST",
+        "path": "/accounts/acct-123/transactions"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "code": "ACCOUNT_TRANSACTION_REJECTED",
+            "description": "Insufficient funds."
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "status": 409
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "get a missing account through Account Service",
+      "key": "ea44e9b9",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "account acct-404 does not exist"
+        }
+      ],
+      "request": {
+        "headers": {
+          "Accept": [
+            "application/json"
+          ],
+          "X-Internal-Caller": [
+            "event-gateway-api"
+          ],
+          "X-Internal-Token": [
+            "local-dev-token"
+          ]
+        },
+        "method": "GET",
+        "path": "/accounts/acct-404"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "code": "ACCOUNT_NOT_FOUND",
+            "description": "Account not found."
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "status": 404
+      },
+      "transport": "http",
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pact-jvm": {
+      "version": "4.6.20"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    },
+    "plugins": [
+
+    ]
+  },
+  "provider": {
+    "name": "account-service"
+  }
+}

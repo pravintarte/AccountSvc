@@ -27,6 +27,8 @@ spring:
     console:
       enabled: true
       path: /h2-console
+      settings:
+        web-allow-others: ${H2_CONSOLE_WEB_ALLOW_OTHERS:true}
   jpa:
     hibernate:
       ddl-auto: none
@@ -101,3 +103,4 @@ logging:
   level:
     root: INFO
     com.cs.accountsvc: DEBUG
+
